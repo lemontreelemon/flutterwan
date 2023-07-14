@@ -1,11 +1,13 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutterwan/app_routes.dart';
 import 'package:flutterwan/tabs/catergroy_page.dart';
 import 'package:flutterwan/tabs/home_page.dart';
 import 'package:get/get.dart';
 
 void main() {
+  // debugPaintSizeEnabled = true;// 可视化调试
   runApp(const MyApp());
 }
 

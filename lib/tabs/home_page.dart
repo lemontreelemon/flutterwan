@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:developer';
 
+import 'package:banner_carousel/banner_carousel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutterwan/bean/home_article_list_bean_entity.dart';
 import 'package:flutterwan/net/net_manager.dart';
 import 'package:get/get.dart';
 
+import '../bean/home_banner_entity.dart';
 import '../res/local_color.dart';
 
 class HomePage extends StatefulWidget {
@@ -17,6 +20,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   //获取数据，列表数据
   HomeArticleListBeanEntity? homeArticleList;
+  HomeBannerEntity? homeBanner;
 
   @override
   void initState() {
@@ -40,20 +44,30 @@ class _HomePageState extends State<HomePage> {
     //     _imageList=res["result"];
     //   });
     // }
+    print("lwg print");
+    debugPrint("lwg debugPrint");
+    log("lwg  log");
     var map = Map();
     map["index"] = 1;
     String url = "https://www.wanandroid.com/article/list/:index/json";
+    String bannerUrl = "https://www.wanandroid.com/banner/json";
     try {
       url = url.replaceAll(":index", "${map["index"]}");
     } catch (e, s) {
       print(e.toString());
       print(s);
     }
-    var data = await NetManager.dio.get(url);
-    var reponse =
-        HomeArticleListBeanEntity.fromJson(json.decode(data.toString()));
+
+    var response = await Future.wait(
+        [NetManager.dio.get(url), NetManager.dio.get(bannerUrl)]);
+
+    var homeArticle =
+        HomeArticleListBeanEntity.fromJson(json.decode(response[0].toString()));
+    var homeBanner =
+        HomeBannerEntity.fromJson(json.decode(response[1].toString()));
     setState(() {
-      homeArticleList = reponse;
+      homeArticleList = homeArticle;
+      this.homeBanner = homeBanner;
     });
   }
 
@@ -69,10 +83,28 @@ class _HomePageState extends State<HomePage> {
     } else {
       return ListView.builder(
         itemBuilder: (BuildContext context, int index) {
-          var itemdata = homeArticleList?.data?.datas?[index];
-          return getItemView(itemdata!);
+          if(index == 0){
+            List<BannerModel> lists = [];
+            homeBanner?.data?.forEach((element) {
+              lists.add(BannerModel(imagePath: element.imagePath,id: "${element.id}"));
+            });
+            return Padding(padding: const EdgeInsets.fromLTRB(0, 10, 0, 5),
+            child: BannerCarousel(
+              banners: lists,
+              onTap: (id){
+                String? bannerPageUrl = homeBanner?.data?.firstWhereOrNull((element) => id == "${element.id}")?.url;
+                if(bannerPageUrl != null){
+                  Get.toNamed("/page/webview",arguments: bannerPageUrl);
+                }
+              },
+            ),
+            );
+          }else {
+            var itemdata = homeArticleList?.data?.datas?[index-1];
+            return getItemView(itemdata!);
+          }
         },
-        itemCount: homeArticleList?.data?.datas?.length,
+        itemCount: getItemSize(homeArticleList?.data?.datas?.length),
       );
     }
   }
@@ -82,7 +114,7 @@ class _HomePageState extends State<HomePage> {
       //item 的点击事件
       onTap: () {
         //跳转 webview，然后显示加载链接
-        Get.toNamed("/page/webview",arguments: itemdata.link);
+        Get.toNamed("/page/webview", arguments: itemdata.link);
       },
       child: Container(
         width: 2000,
@@ -121,7 +153,8 @@ class _HomePageState extends State<HomePage> {
             Container(
               margin: const EdgeInsets.fromLTRB(0, 5, 0, 0),
               child: Text(itemdata.title),
-            ),getPublisher(itemdata.shareUser)
+            ),
+            getPublisher(itemdata.shareUser)
           ],
         ),
       ),
@@ -129,14 +162,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget getPublisher(String? shareUser) {
-    if(shareUser == null || shareUser.isEmpty){
+    if (shareUser == null || shareUser.isEmpty) {
       return const SizedBox();
-    }else {
+    } else {
       return Align(
         alignment: Alignment(-1, 1),
         heightFactor: 1.2,
         child: Text("${shareUser}"),
       );
+    }
+  }
+
+  int getItemSize(int? length) {
+    if (length == null) {
+      return 1;
+    } else {
+      return length + 1;
     }
   }
 }
